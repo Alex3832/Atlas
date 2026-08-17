@@ -34,3 +34,19 @@ export function folderBaseName(path: string): string {
   const parts = trimmed.split(/[\\/]/);
   return parts[parts.length - 1] || trimmed;
 }
+
+const RAW_EXTENSIONS = new Set(["raw", "cr2", "nef", "arw"]);
+
+/** True for camera RAW formats, which Atlas can't write EXIF dates into. */
+export function isRawPhoto(path: string): boolean {
+  const ext = path.split(".").pop()?.toLowerCase() ?? "";
+  return RAW_EXTENSIONS.has(ext);
+}
+
+/** Format a Date as an EXIF DateTimeOriginal string ("2021:06:14 15:42:00"). */
+export function toExifDateString(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}:${pad(date.getMonth() + 1)}:${pad(date.getDate())} ${pad(
+    date.getHours(),
+  )}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+}

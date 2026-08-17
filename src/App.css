@@ -69,6 +69,17 @@
   background: var(--control-hover);
 }
 
+.open-btn.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.open-btn.active:hover {
+  background: var(--accent);
+  opacity: 0.9;
+}
+
 .theme-toggle {
   display: flex;
   align-items: center;

@@ -3,8 +3,9 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { invoke } from "@tauri-apps/api/core";
 import Timeline from "./components/Timeline";
 import Lightbox from "./components/Lightbox";
+import DateUndatedPanel from "./components/DateUndatedPanel";
 import type { Photo, PhotoMeta } from "./types";
-import { folderBaseName, parseExifDate } from "./types";
+import { folderBaseName, parseExifDate, toExifDateString } from "./types";
 import "./App.css";
 
 type View = "timeline" | "globe" | "album";
@@ -36,6 +37,8 @@ function App() {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [theme, setTheme] = useState<Theme>(getInitialTheme);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [datingMode, setDatingMode] = useState(false);
+  const [applyingDate, setApplyingDate] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -64,6 +67,40 @@ function App() {
       setLightboxIndex(null);
     }
   }, [photos.length, lightboxIndex]);
+
+  const undatedPhotos = useMemo(() => photos.filter((p) => !p.date), [photos]);
+
+  const handleApplyDate = useCallback(async (paths: string[], date: Date) => {
+    setApplyingDate(true);
+    setError(null);
+    const exifDate = toExifDateString(date);
+    const results = await Promise.allSettled(
+      paths.map((path) => invoke("set_photo_date", { path, date: exifDate })),
+    );
+
+    const succeeded = new Set(
+      paths.filter((_, i) => results[i].status === "fulfilled"),
+    );
+    const failedCount = paths.length - succeeded.size;
+
+    if (succeeded.size > 0) {
+      setPhotosByFolder((prev) => {
+        const next = { ...prev };
+        for (const folder of Object.keys(next)) {
+          next[folder] = next[folder].map((p) =>
+            succeeded.has(p.path) ? { ...p, date, date_taken: exifDate } : p,
+          );
+        }
+        return next;
+      });
+    }
+
+    if (failedCount > 0) {
+      setError(`Failed to set date on ${failedCount} photo${failedCount === 1 ? "" : "s"}`);
+    }
+
+    setApplyingDate(false);
+  }, []);
 
   const scanFolder = useCallback(async (dir: string) => {
     setLoading(true);
@@ -113,6 +150,14 @@ function App() {
       <header className="toolbar">
         <div className="toolbar-left">
           <span className="app-title">Atlas</span>
+          <button
+            className="theme-toggle"
+            onClick={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
+            aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          >
+            {theme === "dark" ? "☀️" : "🌙"}
+          </button>
         </div>
         <div className="toolbar-center">
           <select
@@ -126,14 +171,14 @@ function App() {
           </select>
         </div>
         <div className="toolbar-right">
-          <button
-            className="theme-toggle"
-            onClick={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
-            aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-            title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-          >
-            {theme === "dark" ? "☀️" : "🌙"}
-          </button>
+          {(undatedPhotos.length > 0 || datingMode) && (
+            <button
+              className={`open-btn${datingMode ? " active" : ""}`}
+              onClick={() => setDatingMode((d) => !d)}
+            >
+              {datingMode ? "Done" : "Date Undated Pictures"}
+            </button>
+          )}
           <div className="folder-menu" ref={menuRef}>
             <button
               className="open-btn"
@@ -193,7 +238,17 @@ function App() {
               </div>
             )}
 
-            {photos.length > 0 && <Timeline photos={photos} onSelect={setLightboxIndex} />}
+            {photos.length > 0 && !datingMode && (
+              <Timeline photos={photos} onSelect={setLightboxIndex} />
+            )}
+
+            {photos.length > 0 && datingMode && (
+              <DateUndatedPanel
+                photos={undatedPhotos}
+                applying={applyingDate}
+                onApply={handleApplyDate}
+              />
+            )}
           </>
         )}
       </main>
