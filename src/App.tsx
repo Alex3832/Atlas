@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { invoke } from "@tauri-apps/api/core";
 import Timeline from "./components/Timeline";
@@ -7,6 +7,8 @@ import DateUndatedPanel from "./components/DateUndatedPanel";
 import type { Photo, PhotoMeta } from "./types";
 import { folderBaseName, parseExifDate, toExifDateString } from "./types";
 import "./App.css";
+
+const GlobeView = lazy(() => import("./components/Globe"));
 
 type View = "timeline" | "globe" | "album";
 type Theme = "dark" | "light";
@@ -166,12 +168,12 @@ function App() {
             onChange={(e) => setCurrentView(e.target.value as View)}
           >
             <option value="timeline">Timeline</option>
-            <option value="globe" disabled>Globe (coming soon)</option>
+            <option value="globe">Globe</option>
             <option value="album" disabled>Album (coming soon)</option>
           </select>
         </div>
         <div className="toolbar-right">
-          {(undatedPhotos.length > 0 || datingMode) && (
+          {currentView === "timeline" && (undatedPhotos.length > 0 || datingMode) && (
             <button
               className={`open-btn${datingMode ? " active" : ""}`}
               onClick={() => setDatingMode((d) => !d)}
@@ -248,6 +250,43 @@ function App() {
                 applying={applyingDate}
                 onApply={handleApplyDate}
               />
+            )}
+          </>
+        )}
+
+        {currentView === "globe" && (
+          <>
+            {error && <div className="error-banner">{error}</div>}
+
+            {folders.length === 0 && loading && (
+              <div className="placeholder">
+                <div className="spinner" />
+                <p>Scanning photos…</p>
+              </div>
+            )}
+
+            {folders.length === 0 && !loading && !error && (
+              <div className="placeholder">
+                <p>Globe view — add a folder to get started</p>
+              </div>
+            )}
+
+            {folders.length > 0 && photos.length === 0 && !loading && (
+              <div className="placeholder">
+                <p>No photos found in the selected folder(s)</p>
+              </div>
+            )}
+
+            {photos.length > 0 && (
+              <Suspense
+                fallback={
+                  <div className="placeholder">
+                    <div className="spinner" />
+                  </div>
+                }
+              >
+                <GlobeView photos={photos} onSelect={setLightboxIndex} />
+              </Suspense>
             )}
           </>
         )}
