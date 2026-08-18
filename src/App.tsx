@@ -4,6 +4,7 @@ import { invoke } from "@tauri-apps/api/core";
 import Timeline from "./components/Timeline";
 import Lightbox from "./components/Lightbox";
 import DateUndatedPanel from "./components/DateUndatedPanel";
+import AddLocationsPanel from "./components/AddLocationsPanel";
 import type { Photo, PhotoMeta } from "./types";
 import { folderBaseName, parseExifDate, toExifDateString } from "./types";
 import "./App.css";
@@ -41,6 +42,8 @@ function App() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [datingMode, setDatingMode] = useState(false);
   const [applyingDate, setApplyingDate] = useState(false);
+  const [locationMode, setLocationMode] = useState(false);
+  const [applyingLocation, setApplyingLocation] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -102,6 +105,42 @@ function App() {
     }
 
     setApplyingDate(false);
+  }, []);
+
+  const noLocationPhotos = useMemo(
+    () => photos.filter((p) => p.latitude == null || p.longitude == null),
+    [photos],
+  );
+
+  const handleApplyLocation = useCallback(async (paths: string[], lat: number, lng: number) => {
+    setApplyingLocation(true);
+    setError(null);
+    const results = await Promise.allSettled(
+      paths.map((path) => invoke("set_photo_gps", { path, lat, lng })),
+    );
+
+    const succeeded = new Set(paths.filter((_, i) => results[i].status === "fulfilled"));
+    const failedCount = paths.length - succeeded.size;
+
+    if (succeeded.size > 0) {
+      setPhotosByFolder((prev) => {
+        const next = { ...prev };
+        for (const folder of Object.keys(next)) {
+          next[folder] = next[folder].map((p) =>
+            succeeded.has(p.path) ? { ...p, latitude: lat, longitude: lng } : p,
+          );
+        }
+        return next;
+      });
+    }
+
+    if (failedCount > 0) {
+      setError(
+        `Failed to set location on ${failedCount} photo${failedCount === 1 ? "" : "s"}`,
+      );
+    }
+
+    setApplyingLocation(false);
   }, []);
 
   const scanFolder = useCallback(async (dir: string) => {
@@ -176,9 +215,27 @@ function App() {
           {currentView === "timeline" && (undatedPhotos.length > 0 || datingMode) && (
             <button
               className={`open-btn${datingMode ? " active" : ""}`}
-              onClick={() => setDatingMode((d) => !d)}
+              onClick={() =>
+                setDatingMode((d) => {
+                  if (!d) setLocationMode(false);
+                  return !d;
+                })
+              }
             >
               {datingMode ? "Done" : "Date Undated Pictures"}
+            </button>
+          )}
+          {currentView === "timeline" && (noLocationPhotos.length > 0 || locationMode) && (
+            <button
+              className={`open-btn${locationMode ? " active" : ""}`}
+              onClick={() =>
+                setLocationMode((l) => {
+                  if (!l) setDatingMode(false);
+                  return !l;
+                })
+              }
+            >
+              {locationMode ? "Done" : "Add Locations"}
             </button>
           )}
           <div className="folder-menu" ref={menuRef}>
@@ -240,7 +297,7 @@ function App() {
               </div>
             )}
 
-            {photos.length > 0 && !datingMode && (
+            {photos.length > 0 && !datingMode && !locationMode && (
               <Timeline photos={photos} onSelect={setLightboxIndex} />
             )}
 
@@ -249,6 +306,14 @@ function App() {
                 photos={undatedPhotos}
                 applying={applyingDate}
                 onApply={handleApplyDate}
+              />
+            )}
+
+            {photos.length > 0 && locationMode && (
+              <AddLocationsPanel
+                photos={noLocationPhotos}
+                applying={applyingLocation}
+                onApply={handleApplyLocation}
               />
             )}
           </>

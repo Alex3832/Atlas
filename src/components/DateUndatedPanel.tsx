@@ -53,7 +53,7 @@ function DateUndatedPanel({ photos, applying, onApply }: DateUndatedPanelProps) 
         <span className="date-undated-hint">
           {photos.length === 0
             ? "No undated pictures"
-            : `Select pictures below, then pick a date and apply · ${selectableCount} eligible`}
+            : `Select pictures below, then pick a date and apply (RAW not supported) · ${selectableCount} eligible`}
         </span>
       </div>
 

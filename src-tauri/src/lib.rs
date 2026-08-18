@@ -8,7 +8,8 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .invoke_handler(tauri::generate_handler![
             commands::scan_photos,
-            commands::set_photo_date
+            commands::set_photo_date,
+            commands::set_photo_gps
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

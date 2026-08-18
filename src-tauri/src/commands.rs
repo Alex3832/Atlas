@@ -1,5 +1,6 @@
 use little_exif::exif_tag::ExifTag;
 use little_exif::metadata::Metadata;
+use little_exif::rational::uR64;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use walkdir::WalkDir;
@@ -269,6 +270,52 @@ pub async fn set_photo_date(path: String, date: String) -> Result<(), String> {
             }
             Some(ext) if RAW_EXTENSIONS.contains(&ext.as_str()) => {
                 Err("RAW files can't be dated in Atlas".to_string())
+            }
+            _ => Err("Unsupported file type".to_string()),
+        }
+    })
+    .await
+    .unwrap_or_else(|e| Err(e.to_string()))
+}
+
+/// Convert decimal degrees into EXIF's degrees/minutes/seconds rational triple.
+fn decimal_to_dms(decimal: f64) -> Vec<uR64> {
+    let abs = decimal.abs();
+    let degrees = abs.floor();
+    let minutes_full = (abs - degrees) * 60.0;
+    let minutes = minutes_full.floor();
+    let seconds = (minutes_full - minutes) * 60.0;
+
+    vec![
+        uR64 { nominator: degrees as u32, denominator: 1 },
+        uR64 { nominator: minutes as u32, denominator: 1 },
+        uR64 { nominator: (seconds * 1000.0).round() as u32, denominator: 1000 },
+    ]
+}
+
+/// Tauri command: write GPS coordinates into a photo's EXIF data.
+/// Same format restriction as `set_photo_date` — RAW files are rejected.
+#[tauri::command]
+pub async fn set_photo_gps(path: String, lat: f64, lng: f64) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let path_ref = Path::new(&path);
+
+        match extension_of(path_ref) {
+            Some(ext) if LITTLE_EXIF_EXTENSIONS.contains(&ext.as_str()) => {
+                let mut metadata =
+                    Metadata::new_from_path(path_ref).map_err(|e| e.to_string())?;
+                metadata.set_tag(ExifTag::GPSLatitudeRef(
+                    if lat >= 0.0 { "N" } else { "S" }.to_string(),
+                ));
+                metadata.set_tag(ExifTag::GPSLatitude(decimal_to_dms(lat)));
+                metadata.set_tag(ExifTag::GPSLongitudeRef(
+                    if lng >= 0.0 { "E" } else { "W" }.to_string(),
+                ));
+                metadata.set_tag(ExifTag::GPSLongitude(decimal_to_dms(lng)));
+                metadata.write_to_file(path_ref).map_err(|e| e.to_string())
+            }
+            Some(ext) if RAW_EXTENSIONS.contains(&ext.as_str()) => {
+                Err("RAW files can't be geotagged in Atlas".to_string())
             }
             _ => Err("Unsupported file type".to_string()),
         }

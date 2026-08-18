@@ -61,6 +61,8 @@
   border-radius: 6px;
   padding: 6px 14px;
   font-size: 13px;
+  white-space: nowrap;
+  flex-shrink: 0;
   cursor: pointer;
   transition: background 0.15s;
 }
