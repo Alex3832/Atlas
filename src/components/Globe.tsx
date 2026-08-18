@@ -3,12 +3,31 @@ import GlobeGL, { type GlobeMethods } from "react-globe.gl";
 import * as THREE from "three";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import type { Photo } from "../types";
-import earthTexture from "../assets/globe/earth-blue-marble.jpg";
-import bumpTexture from "../assets/globe/earth-topology.png";
+import countriesGeoJson from "../assets/globe/countries.json";
 import "./Globe.css";
 
 const POINT_ALTITUDE = 0.01;
 const DOT_PIXEL_SIZE = 0.02;
+const MIN_ALTITUDE = 0.35;
+const MAX_ALTITUDE = 4;
+const ZOOM_FACTOR = 0.75;
+
+const OCEAN_COLOR = "#aad3f2";
+const LAND_COLOR = "#d7e3c1";
+const BORDER_COLOR = "#8fae7a";
+
+interface CountryFeature {
+  type: string;
+  properties: Record<string, unknown>;
+  geometry: { type: string; coordinates: unknown };
+}
+
+const countryFeatures = (countriesGeoJson as unknown as { features: CountryFeature[] })
+  .features;
+
+const oceanMaterial = new THREE.MeshBasicMaterial({ color: OCEAN_COLOR });
+const landCapMaterial = new THREE.MeshBasicMaterial({ color: LAND_COLOR });
+const landSideMaterial = new THREE.MeshBasicMaterial({ color: LAND_COLOR });
 
 interface GlobePoint {
   photo: Photo;
@@ -102,6 +121,16 @@ function GlobeView({ photos, onSelect }: GlobeViewProps) {
     return () => cancelAnimationFrame(frame);
   }, [hovered]);
 
+  const handleZoom = (factor: number) => {
+    if (!globeRef.current) return;
+    const pov = globeRef.current.pointOfView();
+    const altitude = Math.min(
+      MAX_ALTITUDE,
+      Math.max(MIN_ALTITUDE, pov.altitude * factor),
+    );
+    globeRef.current.pointOfView({ ...pov, altitude }, 300);
+  };
+
   const points = useMemo<GlobePoint[]>(
     () =>
       photos
@@ -129,12 +158,17 @@ function GlobeView({ photos, onSelect }: GlobeViewProps) {
               ref={globeRef}
               width={size.width}
               height={size.height}
-              globeImageUrl={earthTexture}
-              bumpImageUrl={bumpTexture}
+              globeMaterial={oceanMaterial}
               backgroundColor="rgba(0,0,0,0)"
               showAtmosphere
               atmosphereColor="#4a9eff"
               atmosphereAltitude={0.18}
+              polygonsData={countryFeatures}
+              polygonGeoJsonGeometry={(d) => (d as CountryFeature).geometry as never}
+              polygonCapMaterial={landCapMaterial}
+              polygonSideMaterial={landSideMaterial}
+              polygonStrokeColor={() => BORDER_COLOR}
+              polygonAltitude={0.005}
               pointsData={[]}
               htmlElementsData={[]}
               objectsData={points}
@@ -171,6 +205,24 @@ function GlobeView({ photos, onSelect }: GlobeViewProps) {
                 <span>{hovered.photo.filename}</span>
               </div>
             )}
+            <div className="globe-zoom-controls">
+              <button
+                className="globe-zoom-btn"
+                onClick={() => handleZoom(ZOOM_FACTOR)}
+                aria-label="Zoom in"
+                title="Zoom in"
+              >
+                +
+              </button>
+              <button
+                className="globe-zoom-btn"
+                onClick={() => handleZoom(1 / ZOOM_FACTOR)}
+                aria-label="Zoom out"
+                title="Zoom out"
+              >
+                −
+              </button>
+            </div>
           </>
         )
       )}

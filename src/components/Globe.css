@@ -40,3 +40,38 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+.globe-zoom-controls {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--control-border);
+  box-shadow: 0 4px 16px var(--shadow);
+  z-index: 5;
+}
+
+.globe-zoom-btn {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--control-bg);
+  color: var(--text);
+  border: none;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.globe-zoom-btn:not(:last-child) {
+  border-bottom: 1px solid var(--control-border);
+}
+
+.globe-zoom-btn:hover {
+  background: var(--control-hover);
+}
