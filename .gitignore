@@ -17,3 +17,4 @@ src-tauri/gen/
 
 # Claude Code local session state
 .claude/
+CLAUDE.md
