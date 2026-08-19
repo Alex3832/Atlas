@@ -7,6 +7,7 @@ import DateUndatedPanel from "./components/DateUndatedPanel";
 import AddLocationsPanel from "./components/AddLocationsPanel";
 import type { Photo, PhotoMeta } from "./types";
 import { folderBaseName, parseExifDate, toExifDateString } from "./types";
+import logo from "./assets/atlas-logo.png";
 import "./App.css";
 
 const GlobeView = lazy(() => import("./components/Globe"));
@@ -190,6 +191,7 @@ function App() {
     <div className="app">
       <header className="toolbar">
         <div className="toolbar-left">
+          <img src={logo} alt="" className="app-logo" draggable={false} />
           <span className="app-title">Atlas</span>
           <button
             className="theme-toggle"

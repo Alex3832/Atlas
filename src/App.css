@@ -32,6 +32,13 @@
 .toolbar-center { flex: 1; justify-content: center; }
 .toolbar-right { flex: 1; justify-content: flex-end; }
 
+.app-logo {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
 .app-title {
   font-size: 15px;
   font-weight: 600;
