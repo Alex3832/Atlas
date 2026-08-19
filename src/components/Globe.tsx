@@ -12,9 +12,10 @@ const MIN_ALTITUDE = 0.35;
 const MAX_ALTITUDE = 4;
 const ZOOM_FACTOR = 0.75;
 
-const OCEAN_COLOR = "#aad3f2";
-const LAND_COLOR = "#d7e3c1";
-const BORDER_COLOR = "#8fae7a";
+const PALETTE = {
+  light: { ocean: "#aad3f2", land: "#d7e3c1", border: "#8fae7a" },
+  dark: { ocean: "#4a739a", land: "#799e7f", border: "#5d8267" },
+};
 
 interface CountryFeature {
   type: string;
@@ -25,9 +26,9 @@ interface CountryFeature {
 const countryFeatures = (countriesGeoJson as unknown as { features: CountryFeature[] })
   .features;
 
-const oceanMaterial = new THREE.MeshBasicMaterial({ color: OCEAN_COLOR });
-const landCapMaterial = new THREE.MeshBasicMaterial({ color: LAND_COLOR });
-const landSideMaterial = new THREE.MeshBasicMaterial({ color: LAND_COLOR });
+const oceanMaterial = new THREE.MeshBasicMaterial({ color: PALETTE.light.ocean });
+const landCapMaterial = new THREE.MeshBasicMaterial({ color: PALETTE.light.land });
+const landSideMaterial = new THREE.MeshBasicMaterial({ color: PALETTE.light.land });
 
 interface GlobePoint {
   photo: Photo;
@@ -39,6 +40,7 @@ interface GlobePoint {
 interface GlobeViewProps {
   photos: Photo[];
   onSelect: (index: number) => void;
+  theme: "dark" | "light";
 }
 
 // Shared across all dots: a small circular canvas texture used as the
@@ -68,12 +70,19 @@ function makeDotMaterial(): THREE.SpriteMaterial {
 
 const dotMaterial = makeDotMaterial();
 
-function GlobeView({ photos, onSelect }: GlobeViewProps) {
+function GlobeView({ photos, onSelect, theme }: GlobeViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const globeRef = useRef<GlobeMethods | undefined>(undefined);
   const [size, setSize] = useState({ width: 0, height: 0 });
   const [hovered, setHovered] = useState<GlobePoint | null>(null);
   const [previewPos, setPreviewPos] = useState<{ x: number; y: number } | null>(null);
+  const palette = PALETTE[theme];
+
+  useEffect(() => {
+    oceanMaterial.color.set(palette.ocean);
+    landCapMaterial.color.set(palette.land);
+    landSideMaterial.color.set(palette.land);
+  }, [palette]);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -167,7 +176,7 @@ function GlobeView({ photos, onSelect }: GlobeViewProps) {
               polygonGeoJsonGeometry={(d) => (d as CountryFeature).geometry as never}
               polygonCapMaterial={landCapMaterial}
               polygonSideMaterial={landSideMaterial}
-              polygonStrokeColor={() => BORDER_COLOR}
+              polygonStrokeColor={() => palette.border}
               polygonAltitude={0.005}
               pointsData={[]}
               htmlElementsData={[]}
